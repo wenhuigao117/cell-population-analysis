@@ -39,6 +39,8 @@ def get_connection() -> sqlite3.Connection:
     return sqlite3.connect(DB_PATH)
 
 
+# ── Part 2: Relative Frequency Table ─────────────────────────────────────────
+
 def get_frequency_table() -> pd.DataFrame:
     """
     Compute the relative frequency of each immune cell population
@@ -113,12 +115,6 @@ def get_frequency_table() -> pd.DataFrame:
     ].reset_index(drop=True)
 
 
-if __name__ == "__main__":
-    frequency_table = get_frequency_table()
-
-    print("Part 2: Relative Frequency Table")
-    print(f"Rows: {len(frequency_table):,}")
-    print(frequency_table.head(10).to_string(index=False))
 
 # ── Part 3: Statistical Analysis ─────────────────────────────────────────────
 def get_melanoma_miraclib_pbmc() -> pd.DataFrame:
@@ -200,3 +196,127 @@ def run_statistical_tests(df: pd.DataFrame) -> pd.DataFrame:
     result = pd.DataFrame(rows)
     result = result.sort_values("p_value").reset_index(drop=True)
     return result
+
+
+# ── Part 4: Subset Analysis ───────────────────────────────────────────────────
+
+def get_baseline_subset() -> pd.DataFrame:
+    """
+    Part 4 Query 1.
+
+    Identify all melanoma PBMC samples at baseline from patients treated
+    with miraclib.
+
+    Filter:
+        condition = melanoma
+        sample_type = PBMC
+        time_from_treatment_start = 0
+        treatment = miraclib
+    """
+    query = """
+        SELECT
+            s.sample_id,
+            subj.subject_id,
+            subj.project,
+            subj.sex,
+            subj.response,
+            cc.b_cell,
+            cc.cd8_t_cell,
+            cc.cd4_t_cell,
+            cc.nk_cell,
+            cc.monocyte
+        FROM samples s
+        JOIN subjects subj
+            ON s.subject_id = subj.subject_id
+        JOIN cell_counts cc
+            ON s.sample_id = cc.sample_id
+        WHERE subj.condition = 'melanoma'
+          AND s.sample_type = 'PBMC'
+          AND s.time_from_treatment_start = 0
+          AND subj.treatment = 'miraclib'
+    """
+
+    conn = get_connection()
+    try:
+        df = pd.read_sql_query(query, conn)
+    finally:
+        conn.close()
+
+    return df
+
+
+def get_subset_summary(df: pd.DataFrame) -> dict:
+    """
+    Part 4 Query 2.
+
+    Summarize the baseline subset.
+
+    Returns:
+        total_samples:
+            Number of melanoma PBMC baseline miraclib samples.
+
+        samples_per_project:
+            Number of samples from each project.
+
+        response_counts:
+            Number of unique subjects who were responders/non-responders.
+
+        sex_counts:
+            Number of unique subjects who were male/female.
+
+        avg_bcell_male_responders:
+            Average B cell count among melanoma male responders at baseline.
+    """
+    subjects = df.drop_duplicates("subject_id")
+
+    male_responders = df[
+        (df["sex"] == "M") &
+        (df["response"] == "yes")
+    ]
+
+    summary = {
+        "total_samples": len(df),
+
+        "samples_per_project": (
+            df.groupby("project")["sample_id"]
+            .count()
+            .sort_index()
+            .to_dict()
+        ),
+
+        "response_counts": (
+            subjects["response"]
+            .value_counts()
+            .sort_index()
+            .to_dict()
+        ),
+
+        "sex_counts": (
+            subjects["sex"]
+            .value_counts()
+            .sort_index()
+            .to_dict()
+        ),
+
+        "avg_bcell_male_responders": round(
+            male_responders["b_cell"].mean(), 2
+        ),
+    }
+
+    return summary
+
+
+if __name__ == "__main__":
+    frequency_table = get_frequency_table()
+    print("Part 2: Relative Frequency Table")
+    print(f"Rows: {len(frequency_table):,}")
+    print(frequency_table.head(10).to_string(index=False))
+
+    print("\nPart 3 — statistical tests:")
+    mmp = get_melanoma_miraclib_pbmc()
+    print(run_statistical_tests(mmp).to_string(index=False))
+
+    print("\nPart 4 — subset summary:")
+    baseline = get_baseline_subset()
+    for k, v in get_subset_summary(baseline).items():
+        print(f"  {k}: {v}")
