@@ -2,7 +2,7 @@
 # Immune Cell Population Analysis
 ### Exploratory immune profiling for a miraclib clinical trial
 
-This was my first time building an end-to-end data pipeline for a clinical dataset, and it turned out to be more interesting than I expected. The individual steps — loading data, running queries, making charts — were each manageable on their own. The harder part was figuring out how to connect them in a way that actually made sense.
+This was my first time building an end-to-end data pipeline for a clinical dataset, and it turned out to be more interesting than I expected. The individual steps：loading data, running queries, making charts were each manageable on their own. The harder part was figuring out how to connect them in a way that actually made sense.
 
 I used:
 - **SQLite** for structured data storage
@@ -84,14 +84,14 @@ Only CD4+ T cells showed a significant difference (p = 0.013). Responders had a 
 
 **Part 4: Subset analysis**
 
-Filtering to melanoma, PBMC, time = 0, miraclib gave 656 samples across two projects — prj1 (384) and prj3 (272). The cohort has 331 responders and 325 non-responders, with 344 males and 312 females.
+Filtering to melanoma, PBMC, time = 0, miraclib gave 656 samples across two projects： prj1 (384) and prj3 (272). The cohort has 331 responders and 325 non-responders, with 344 males and 312 females.
 
 Among male responders at baseline, the mean B cell count is **10,401.28 cells per sample**.
 
 ---
 ## Reflection
 
-The part I spent the most time on wasn't the statistics or the dashboard — it was figuring out where each piece of logic should live. Should the frequency calculation happen in SQL or in pandas? Should the filtering be done in the database or in the application layer? I didn't have a strong intuition for this at the start, and I revised the structure a few times before it felt clean.
+The part I spent the most time on wasn't the statistics or the dashboard， it was figuring out where each piece of logic should live. Should the frequency calculation happen in SQL or in pandas? Should the filtering be done in the database or in the application layer? I didn't have a strong intuition for this at the start, and I revised the structure a few times before it felt clean.
 
 The schema design was also less obvious than I expected. My first version just mirrored the CSV structure, but once I started writing the Part 3 and 4 queries I kept running into awkward joins, which told me the data wasn't organized in a way that matched the questions being asked. Splitting subjects, samples, and counts into separate tables made the queries much more natural.
 
@@ -107,6 +107,6 @@ make dashboard
 ```
 
 Three tabs:
-- **Frequency table** — filterable table of all 52,500 rows, plus a mean frequency bar chart
-- **Statistical analysis** — Mann-Whitney results with boxplots comparing responders vs non-responders
-- **Subset analysis** — project/response/sex breakdowns for the baseline cohort, and the B cell result
+- **Frequency table**： filterable table of all 52,500 rows, plus a mean frequency bar chart
+- **Statistical analysis**： Mann-Whitney results with boxplots comparing responders vs non-responders
+- **Subset analysis**： project/response/sex breakdowns for the baseline cohort, and the B cell result
