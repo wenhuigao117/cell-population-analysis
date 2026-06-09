@@ -1,5 +1,5 @@
 # Immune Cell Population Analysis
-### Loblaw Bio: miraclib clinical trial
+### Exploratory immune profiling for a miraclib clinical trial
 
 This assignment combines several pieces of a typical analytical workflow: data ingestion, data modeling, statistical analysis, and visualization.
 
