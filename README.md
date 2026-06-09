@@ -1,4 +1,4 @@
-```markdown
+
 # Immune Cell Population Analysis
 ### Exploratory immune profiling for a miraclib clinical trial
 
@@ -97,6 +97,7 @@ The schema design was also less obvious than I expected. My first version just m
 
 The dataset is synthetic, but the questions felt realistic — the kind of thing someone would actually want to know early in a clinical trial. That made it easier to think about what "useful" looked like, rather than just getting the numbers out.
 
+---
 ## Dashboard
 
 Local dashboard URL: **http://localhost:8050**
@@ -109,4 +110,3 @@ Three tabs:
 - **Frequency table** — filterable table of all 52,500 rows, plus a mean frequency bar chart
 - **Statistical analysis** — Mann-Whitney results with boxplots comparing responders vs non-responders
 - **Subset analysis** — project/response/sex breakdowns for the baseline cohort, and the B cell result
-```
