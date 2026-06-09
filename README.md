@@ -1,13 +1,18 @@
-
 # Immune Cell Population Analysis
+
 ### Exploratory immune profiling for a miraclib clinical trial
 
-This was my first time building an end-to-end data pipeline for a clinical dataset, and it turned out to be more interesting than I expected. The individual steps：loading data, running queries, making charts were each manageable on their own. The harder part was figuring out how to connect them in a way that actually made sense.
+This was my first time building an end-to-end data pipeline for a clinical dataset, and it turned out to be more interesting than I expected.
 
-I used:
-- **SQLite** for structured data storage
-- **Python** for data processing and statistics
-- **Plotly / Dash** for the interactive dashboard
+At first, the assignment looked fairly straightforward: load a CSV file, run some analyses, and build a dashboard. The individual tasks were manageable on their own. The harder part was figuring out how to connect everything together in a way that felt clean, reusable, and easy to extend.
+
+To support that workflow, I used:
+
+* **SQLite** for structured data storage
+* **Python** for data processing and statistical analysis
+* **Plotly / Dash** for visualization and interactive exploration
+
+The final result is a reproducible pipeline that transforms raw cell count measurements into analytical outputs that can be explored through an interactive dashboard.
 
 ---
 
@@ -21,28 +26,32 @@ make pipeline   # initialise database, run analysis, save outputs to ./outputs/
 make dashboard  # start dashboard at http://localhost:8050
 ```
 
-`make dashboard` will initialise the database automatically if it does not already exist, so the two commands can be run independently.
+`make dashboard` will initialise the database automatically if it does not already exist, so the pipeline and dashboard can be run independently.
 
 ---
 
 ## Database schema
 
-The CSV has one row per sample, mixing patient-level info (age, sex, condition) with sample-level info (time point, cell counts). My first instinct was to load it into one table and be done with it, but that felt wrong once I noticed that each patient appears multiple times across different time points. Keeping all the patient info duplicated in every row seemed like it would create problems later if anything needed to be updated or filtered.
+The source CSV contains one row per sample and mixes patient-level information (age, sex, condition, treatment) with sample-level information (time point and cell counts).
 
-So I split it into three tables:
+My first instinct was to load everything into a single table. After exploring the data, that approach started to feel limiting because each patient appears multiple times across different samples and time points. Repeating all patient attributes in every row would introduce redundancy and make future extensions more difficult.
 
-```
+To better reflect the underlying relationships, I split the data into three tables:
+
+```text
 subjects        one row per patient
   subject_id, project, condition, age, sex, treatment, response
 
 samples         one row per biological sample
   sample_id, subject_id, sample_type, time_from_treatment_start
 
-cell_counts     one row per sample, five cell population columns
+cell_counts     one row per sample
   sample_id, b_cell, cd8_t_cell, cd4_t_cell, nk_cell, monocyte
 ```
 
-For scalability, I added four indexes to support the joins and filters that show up repeatedly in Parts 3 and 4:
+In this dataset, treatment and response are modeled as subject-level attributes because each subject belongs to a single treatment arm and has a single response label across collected samples. If treatment assignments varied over time, those fields could be moved into a visit-level or sample-level table.
+
+To support the analytical queries used throughout Parts 3 and 4, I created four indexes:
 
 ```sql
 idx_samples_subject_id      ON samples(subject_id)
@@ -51,62 +60,191 @@ idx_subjects_filter         ON subjects(condition, treatment, response)
 idx_samples_filter          ON samples(sample_type, time_from_treatment_start)
 ```
 
-With hundreds of projects and millions of rows, full table scans would get slow，these indexes help avoid that. I kept `cell_counts` in wide format (one column per population) because the five populations are fixed in this dataset and it makes the frequency math simpler. If new cell types were added later, switching to a long format (`sample_id, population, count`) would be more flexible, and I noted that tradeoff in the schema design.
+With larger datasets, full table scans become increasingly expensive. These indexes help keep filtering and joins efficient as the number of projects, subjects, and samples grows.
+
+I kept `cell_counts` in a wide format because the five immune populations are fixed in this dataset and the frequency calculations become straightforward. If future studies introduced many additional populations, a long-format structure (`sample_id`, `population`, `count`) would likely be more flexible.
 
 ---
 
 ## Code structure
 
-```
+```text
 load_data.py    initialise SQLite schema and load cell-count.csv
-analysis.py     query functions for Parts 2-4, returns DataFrames
-pipeline.py     runs the full pipeline and saves outputs to ./outputs/
+analysis.py     query functions for Parts 2–4 and return DataFrames
+pipeline.py     run the complete pipeline and save outputs
 app.py          Dash dashboard
 ```
 
-I kept `analysis.py` as pure query functions with no file I/O or plotting, so the same code could be called from both `pipeline.py` (which saves CSVs and images) and `app.py` (which renders charts interactively) without duplicating logic. `load_data.py` is standalone so `pipeline.py` can call it as a subprocess without import issues.
+I intentionally separated computation from presentation.
 
-I picked Dash over Streamlit partly because I wanted to better understand how callback-driven applications work. As the dashboard grew, I found Dash's explicit separation between inputs, outputs, and callbacks easier to reason about and debug. Streamlit would have been quicker to prototype, but Dash felt like a better fit once the interactions became more complex.
+`analysis.py` contains reusable query and analysis functions with no file I/O or plotting logic. These same functions are used by both `pipeline.py` and `app.py`, which avoids duplicating calculations across different parts of the project.
+
+`pipeline.py` orchestrates the entire workflow and generates all required outputs.
+
+`app.py` focuses entirely on visualization and user interaction.
+
+`load_data.py` remains standalone so it can be executed independently or called by the pipeline without creating import dependencies.
+
+---
+
+## Why Dash?
+
+I originally considered using Streamlit because it would have been faster to get something working.
+
+In the end, I chose Dash because I wanted to better understand how callback-driven applications are structured. As the dashboard became more interactive, I found Dash's explicit separation between inputs, outputs, and callbacks easier to reason about and debug.
+
+Streamlit would have been quicker to prototype, but Dash felt like a better fit once the application started growing beyond a few simple visualizations.
 
 ---
 
 ## Analysis summary
 
-**Part 2: Relative frequencies**
+### Part 2: Relative frequencies
 
-For each sample, I summed the five population counts to get `total_count`, then divided each population's count by that total to get a percentage. The result is 52,500 rows (10,500 samples × 5 populations).
+For each sample, I calculated the total cell count by summing the five immune populations.
 
-**Part 3: Statistical analysis**
+The relative frequency of each population was then computed as:
 
-I filtered to melanoma PBMC samples treated with miraclib, then compared responders vs non-responders using a two-sided Mann-Whitney U test for each population. I used Mann-Whitney rather than a t-test because it doesn't assume normality, which felt safer here without knowing the underlying distribution.
+```text
+population count / total sample count
+```
 
-Only CD4+ T cells showed a significant difference (p = 0.013). Responders had a slightly higher median frequency (30.22% vs 29.66%). The difference is small, so I wouldn't call it a strong biomarker signal on its own, but it's probably worth looking at in combination with other variables.
+The resulting frequency table contains 52,500 rows:
 
-**Part 4: Subset analysis**
+```text
+10,500 samples × 5 populations
+```
 
-Filtering to melanoma, PBMC, time = 0, miraclib gave 656 samples across two projects： prj1 (384) and prj3 (272). The cohort has 331 responders and 325 non-responders, with 344 males and 312 females.
+Each row includes:
 
-Among male responders at baseline, the mean B cell count is **10,401.28 cells per sample**.
+* Sample ID
+* Population
+* Raw count
+* Total sample count
+* Relative frequency (%)
 
 ---
-## Reflection
 
-The part I spent the most time on wasn't the statistics or the dashboard， it was figuring out where each piece of logic should live. Should the frequency calculation happen in SQL or in pandas? Should the filtering be done in the database or in the application layer? I didn't have a strong intuition for this at the start, and I revised the structure a few times before it felt clean.
+### Part 3: Statistical analysis
 
-The schema design was also less obvious than I expected. My first version just mirrored the CSV structure, but once I started writing the Part 3 and 4 queries I kept running into awkward joins, which told me the data wasn't organized in a way that matched the questions being asked. Splitting subjects, samples, and counts into separate tables made the queries much more natural.
+To investigate whether immune cell composition is associated with treatment response, I filtered the dataset to:
 
-The dataset is synthetic, but the questions felt realistic — the kind of thing someone would actually want to know early in a clinical trial. That made it easier to think about what "useful" looked like, rather than just getting the numbers out.
+* Melanoma patients
+* PBMC samples
+* Miraclib treatment
+
+For each population, I compared responders and non-responders using a two-sided Mann-Whitney U test.
+
+I chose the Mann-Whitney test instead of a t-test because it does not assume normally distributed data and is generally more robust for biological measurements where the underlying distribution is unknown.
+
+Among the five populations examined, only CD4+ T cells showed a statistically significant difference:
+
+```text
+p = 0.013
+```
+
+Responders had a slightly higher median CD4+ T-cell frequency:
+
+```text
+30.22% vs 29.66%
+```
+
+The effect size is modest, so I would not interpret this as a strong predictive biomarker by itself. However, if this were a real clinical study, CD4+ T-cell abundance would likely be one of the first features worth investigating further alongside additional clinical variables and longitudinal measurements.
 
 ---
+
+### Part 4: Subset analysis
+
+I filtered the data to:
+
+* Melanoma patients
+* PBMC samples
+* Miraclib treatment
+* Baseline samples (`time_from_treatment_start = 0`)
+
+This subset contains:
+
+```text
+656 samples
+```
+
+distributed across:
+
+```text
+prj1: 384 samples
+prj3: 272 samples
+```
+
+The cohort includes:
+
+```text
+331 responders
+325 non-responders
+
+344 males
+312 females
+```
+
+Among male responders at baseline, the mean B-cell count is:
+
+```text
+10,401.28 cells per sample
+```
+
+---
+
 ## Dashboard
 
-Local dashboard URL: **http://localhost:8050**
+Local dashboard URL:
+
+```text
+http://localhost:8050
+```
+
+Start the dashboard with:
 
 ```bash
 make dashboard
 ```
 
-Three tabs:
-- **Frequency table**： filterable table of all 52,500 rows, plus a mean frequency bar chart
-- **Statistical analysis**： Mann-Whitney results with boxplots comparing responders vs non-responders
-- **Subset analysis**： project/response/sex breakdowns for the baseline cohort, and the B cell result
+The dashboard is organized into three tabs:
+
+### Frequency table
+
+* Interactive table of all 52,500 frequency records
+* Search and filtering functionality
+* Mean frequency summary chart
+
+### Statistical analysis
+
+* Mann-Whitney U test results
+* Significance highlighting
+* Boxplots comparing responders and non-responders
+
+### Subset analysis
+
+* Baseline cohort summary
+* Project distribution
+* Response distribution
+* Sex distribution
+* Mean B-cell count result
+
+---
+
+## Reflection
+
+The part I spent the most time thinking about was not the statistics or the dashboard itself. It was figuring out where each piece of logic should live.
+
+Should frequency calculations happen in SQL or in pandas?
+
+Should filtering happen in the database layer or in the application layer?
+
+At the beginning of the project, I did not have strong answers to those questions. I revised the structure several times before it started to feel clean and consistent.
+
+The schema design was also less obvious than I expected. My first version closely mirrored the CSV structure. Once I started writing the Part 3 and Part 4 queries, I found myself repeatedly working around awkward joins and duplicated information. That was a useful signal that the data model was not aligned with the questions being asked.
+
+Separating subjects, samples, and measurements ultimately made both the analysis code and the SQL queries much easier to understand.
+
+Although the dataset is synthetic, the analytical questions felt realistic. They resemble the kinds of exploratory questions that researchers might ask early in a clinical study when trying to understand potential treatment effects and identify signals worth investigating further.
+
+More than anything, this project reinforced the idea that organizing data well is often just as important as analyzing it.
