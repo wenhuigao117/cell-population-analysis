@@ -31,7 +31,7 @@ make dashboard  # start dashboard at http://localhost:8050
 
 ## Database schema
 
-The source data is a flat CSV where every row contains both patient-level metadata and sample-level measurements. Although the entire dataset could fit comfortably in a single table, I chose not to model it that way. The assignment hints at longitudinal clinical data — patients contributing multiple samples at different time points — and separating subjects, samples, and measurements better reflects the underlying relationships and keeps the schema adaptable as the study grows.
+The source data is a flat CSV where every row contains both patient-level metadata and sample-level measurements. Although the entire dataset could fit comfortably in a single table, I chose not to model it that way. The assignment hints at longitudinal clinical data, where patients contribute multiple samples at different time points, and separating subjects, samples, and measurements better reflects the underlying relationships and keeps the schema adaptable as the study grows.
 
 ```
 subjects        — one row per patient
@@ -63,14 +63,14 @@ With hundreds of projects and millions of samples, these indexes keep the analyt
 
 ```
 load_data.py    initialise SQLite schema and load cell-count.csv
-analysis.py     analytical functions for Parts 2–4
+analysis.py     analytical functions for Parts 2-4
 pipeline.py     orchestrates the full pipeline, saves outputs to ./outputs/
 app.py          Dash dashboard
 ```
 
 **Design decisions**
 
-I intentionally separated computation from presentation. `analysis.py` contains only functions that query the database and return DataFrames — no file I/O, no plotting. The same functions are reused by both `pipeline.py` (which saves static outputs) and `app.py` (which renders them interactively), with no duplication. `load_data.py` is kept entirely standalone so it can be called as a subprocess by `pipeline.py` without creating circular imports.
+I intentionally separated computation from presentation. `analysis.py` contains only functions that query the database and return DataFrames, with no file I/O and no plotting. The same functions are reused by both `pipeline.py` (which saves static outputs) and `app.py` (which renders them interactively), with no duplication. `load_data.py` is kept entirely standalone so it can be called as a subprocess by `pipeline.py` without creating circular imports.
 
 Data are loaded once at dashboard startup and reused across all interactions, so navigating between tabs does not re-query the database.
 
@@ -84,13 +84,13 @@ Dash separates layout from callbacks, which makes the data flow explicit. For a 
 
 **Part 2 — Relative frequencies**
 
-Frequencies were computed by melting the wide cell count table into long format (52,500 rows: 10,500 samples × 5 populations) and expressing each population as a percentage of the sample total.
+Frequencies were computed by melting the wide cell count table into long format (52,500 rows: 10,500 samples x 5 populations) and expressing each population as a percentage of the sample total.
 
 **Part 3 — Statistical analysis**
 
-To compare responders and non-responders among melanoma PBMC samples treated with miraclib, I used a two-sided Mann–Whitney U test for each population. This test was chosen over a t-test because it makes no assumption about normality and is appropriate for the sample sizes here.
+To compare responders and non-responders among melanoma PBMC samples treated with miraclib, I used a two-sided Mann-Whitney U test for each population. This test was chosen over a t-test because it makes no assumption about normality and is appropriate for the sample sizes here.
 
-Among the five populations examined, only CD4+ T cells showed a statistically significant difference between groups (p = 0.013). Responders had a higher median CD4+ T-cell frequency (30.22% vs 29.66%). The magnitude of the difference is relatively small, so I would not interpret this as evidence of a predictive biomarker on its own. However, if this were a real clinical study, CD4+ T-cell abundance would likely be one of the first features to prioritize for follow-up analysis — particularly in combination with additional clinical covariates or longitudinal measurements.
+Among the five populations examined, only CD4+ T cells showed a statistically significant difference between groups (p = 0.013). Responders had a higher median CD4+ T-cell frequency (30.22% vs 29.66%). The magnitude of the difference is relatively small, so I would not interpret this as evidence of a predictive biomarker on its own. However, if this were a real clinical study, CD4+ T-cell abundance would likely be one of the first features to prioritize for follow-up analysis, particularly in combination with additional clinical covariates or longitudinal measurements.
 
 **Part 4 — Subset analysis**
 
@@ -122,6 +122,6 @@ Three tabs mirror the analytical parts:
 
 Building the individual components was not particularly difficult. The more interesting challenge was deciding where each responsibility should live: what should be handled by the database, what should be calculated in analysis code, and what should be left to the dashboard. Thinking through those boundaries ultimately had a bigger impact on the project than any individual visualization or statistical test.
 
-While the dataset is synthetic, the workflow resembles many real problems in translational research — where raw measurements need to be transformed into something interpretable for researchers and decision makers.
+While the dataset is synthetic, the workflow resembles many real problems in translational research, where raw measurements need to be transformed into something interpretable for researchers and decision makers.
 
 Reproducibility was also a major consideration throughout. The same commands should produce the same outputs regardless of who runs the code, which is why the entire workflow is exposed through a small set of Makefile targets rather than requiring manual execution steps.
