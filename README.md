@@ -51,7 +51,7 @@ idx_subjects_filter         ON subjects(condition, treatment, response)
 idx_samples_filter          ON samples(sample_type, time_from_treatment_start)
 ```
 
-With hundreds of projects and millions of rows, full table scans would get slow — these indexes help avoid that. I kept `cell_counts` in wide format (one column per population) because the five populations are fixed in this dataset and it makes the frequency math simpler. If new cell types were added later, switching to a long format (`sample_id, population, count`) would be more flexible, and I noted that tradeoff in the schema design.
+With hundreds of projects and millions of rows, full table scans would get slow，these indexes help avoid that. I kept `cell_counts` in wide format (one column per population) because the five populations are fixed in this dataset and it makes the frequency math simpler. If new cell types were added later, switching to a long format (`sample_id, population, count`) would be more flexible, and I noted that tradeoff in the schema design.
 
 ---
 
@@ -66,7 +66,7 @@ app.py          Dash dashboard
 
 I kept `analysis.py` as pure query functions with no file I/O or plotting, so the same code could be called from both `pipeline.py` (which saves CSVs and images) and `app.py` (which renders charts interactively) without duplicating logic. `load_data.py` is standalone so `pipeline.py` can call it as a subprocess without import issues.
 
-I picked Dash over Streamlit mainly because I wanted to understand how the callback system works — it makes it explicit which inputs trigger which outputs, which helped me debug the dashboard more easily. Streamlit would have been quicker to set up, but I found Dash easier to reason about once the layout got more complex.
+I picked Dash over Streamlit partly because I wanted to better understand how callback-driven applications work. As the dashboard grew, I found Dash's explicit separation between inputs, outputs, and callbacks easier to reason about and debug. Streamlit would have been quicker to prototype, but Dash felt like a better fit once the interactions became more complex.
 
 ---
 
