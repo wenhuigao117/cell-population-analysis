@@ -1,0 +1,18 @@
+
+body { margin: 0; background: #F5F7FA; }
+
+#nav-freq, #nav-stats, #nav-subset {
+    padding: 10px 20px;
+    cursor: pointer;
+    color: #8BA5B8;
+    border-left: 3px solid transparent;
+    font-size: 13px;
+    transition: all .15s;
+}
+#nav-freq:hover, #nav-stats:hover, #nav-subset:hover {
+    background: #1A2E42;
+    color: white;
+}
+
+.Select-control { border-color: #E4E8EE !important; border-radius: 4px !important; }
+.Select-control:hover { border-color: #4A90A4 !important; }
