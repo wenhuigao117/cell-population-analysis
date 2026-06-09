@@ -1,16 +1,14 @@
 """
 analysis.py
 
-Part 2: Initial Analysis - Data Overview
-
-This module reads from the SQLite database created by load_data.py
-and computes the relative frequency of each immune cell population
-within each biological sample.
+Core analytical functions for Parts 2-4.
+All functions read from the SQLite database created by load_data.py.
 """
 
 import os
 import sqlite3
 import pandas as pd
+from scipy import stats
 
 
 DB_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "immune_data.db")
@@ -121,3 +119,84 @@ if __name__ == "__main__":
     print("Part 2: Relative Frequency Table")
     print(f"Rows: {len(frequency_table):,}")
     print(frequency_table.head(10).to_string(index=False))
+
+# ── Part 3: Statistical Analysis ─────────────────────────────────────────────
+def get_melanoma_miraclib_pbmc() -> pd.DataFrame:
+    """
+    Melanoma PBMC samples treated with miraclib that have a known response.
+    Returns wide DataFrame with raw counts, total_count, and *_pct columns.
+    """
+    query = """
+        SELECT s.sample_id AS sample,
+               subj.response,
+               cc.b_cell, cc.cd8_t_cell, cc.cd4_t_cell, cc.nk_cell, cc.monocyte
+        FROM   samples s
+        JOIN   subjects subj ON s.subject_id = subj.subject_id
+        JOIN   cell_counts cc ON s.sample_id = cc.sample_id
+        WHERE  subj.condition = 'melanoma'
+          AND  subj.treatment = 'miraclib'
+          AND  s.sample_type  = 'PBMC'
+          AND  subj.response  IS NOT NULL
+    """
+    conn = get_connection()
+    try:
+        df = pd.read_sql_query(query, conn)
+    finally:
+        conn.close()
+
+    df["total_count"] = df[CELL_POPS].sum(axis=1)
+    df = df[df["total_count"] > 0].copy()
+
+    for pop in CELL_POPS:
+        df[f"{pop}_pct"] = (df[pop] / df["total_count"] * 100).round(4)
+    return df
+
+
+def run_statistical_tests(df: pd.DataFrame) -> pd.DataFrame:
+    """
+    Mann-Whitney U (two-sided) for each cell population pct,
+    responders vs non-responders.
+    Returns one row per population with sample sizes, medians,
+    median difference, direction, U statistic, p-value, significance.
+    """
+    resp = df[df["response"] == "yes"]
+    non  = df[df["response"] == "no"]
+
+    rows = []
+    for pop in CELL_POPS:
+        col     = f"{pop}_pct"
+        r_vals  = resp[col].dropna()
+        nr_vals = non[col].dropna()
+
+        # Skip if either group is empty
+        if len(r_vals) == 0 or len(nr_vals) == 0:
+            continue
+
+        u_stat, p_val = stats.mannwhitneyu(r_vals, nr_vals, alternative="two-sided")
+
+        r_med  = round(r_vals.median(), 3)
+        nr_med = round(nr_vals.median(), 3)
+        diff   = round(r_med - nr_med, 3)
+
+        if diff > 0:
+            higher_in = "responders"
+        elif diff < 0:
+            higher_in = "non_responders"
+        else:
+            higher_in = "equal"
+
+        rows.append({
+            "population":               pop,
+            "n_responders":             len(r_vals),
+            "n_non_responders":         len(nr_vals),
+            "responder_median_pct":     r_med,
+            "non_responder_median_pct": nr_med,
+            "median_diff_pct":          diff,
+            "higher_in":                higher_in,
+            "mann_whitney_u":           round(u_stat, 1),
+            "p_value":                  round(p_val, 6),
+            "significant":              p_val < 0.05,
+        })
+    result = pd.DataFrame(rows)
+    result = result.sort_values("p_value").reset_index(drop=True)
+    return result
