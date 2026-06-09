@@ -1,5 +1,5 @@
 # Immune Cell Population Analysis
-### Loblaw Bio — miraclib clinical trial
+### Loblaw Bio: miraclib clinical trial
 
 This assignment combines several pieces of a typical analytical workflow: data ingestion, data modeling, statistical analysis, and visualization.
 
@@ -34,13 +34,13 @@ make dashboard  # start dashboard at http://localhost:8050
 The source data is a flat CSV where every row contains both patient-level metadata and sample-level measurements. Although the entire dataset could fit comfortably in a single table, I chose not to model it that way. The assignment hints at longitudinal clinical data, where patients contribute multiple samples at different time points, and separating subjects, samples, and measurements better reflects the underlying relationships and keeps the schema adaptable as the study grows.
 
 ```
-subjects        — one row per patient
+subjects        one row per patient
   subject_id, project, condition, age, sex, treatment, response
 
-samples         — one row per biological sample
+samples         one row per biological sample
   sample_id, subject_id, sample_type, time_from_treatment_start
 
-cell_counts     — one row per sample, five cell population columns
+cell_counts     one row per sample, five cell population columns
   sample_id, b_cell, cd8_t_cell, cd4_t_cell, nk_cell, monocyte
 ```
 
@@ -82,17 +82,17 @@ Dash separates layout from callbacks, which makes the data flow explicit. For a 
 
 ## Analysis summary
 
-**Part 2 — Relative frequencies**
+**Part 2: Relative frequencies**
 
 Frequencies were computed by melting the wide cell count table into long format (52,500 rows: 10,500 samples x 5 populations) and expressing each population as a percentage of the sample total.
 
-**Part 3 — Statistical analysis**
+**Part 3: Statistical analysis**
 
 To compare responders and non-responders among melanoma PBMC samples treated with miraclib, I used a two-sided Mann-Whitney U test for each population. This test was chosen over a t-test because it makes no assumption about normality and is appropriate for the sample sizes here.
 
 Among the five populations examined, only CD4+ T cells showed a statistically significant difference between groups (p = 0.013). Responders had a higher median CD4+ T-cell frequency (30.22% vs 29.66%). The magnitude of the difference is relatively small, so I would not interpret this as evidence of a predictive biomarker on its own. However, if this were a real clinical study, CD4+ T-cell abundance would likely be one of the first features to prioritize for follow-up analysis, particularly in combination with additional clinical covariates or longitudinal measurements.
 
-**Part 4 — Subset analysis**
+**Part 4: Subset analysis**
 
 Baseline PBMC samples (t = 0, melanoma, miraclib) span two projects: prj1 (384 samples) and prj3 (272 samples). The baseline cohort contains 656 samples in total, representing 331 responders and 325 non-responders.
 
@@ -112,9 +112,9 @@ make dashboard
 
 Three tabs mirror the analytical parts:
 
-- **Frequency table** — searchable and filterable table of all 52,500 frequency rows, plus mean frequency bar chart
-- **Statistical analysis** — Mann-Whitney results with significance highlighting and comparative boxplots
-- **Subset analysis** — baseline cohort breakdowns and the key B cell result
+- **Frequency table**: searchable and filterable table of all 52,500 frequency rows, plus mean frequency bar chart
+- **Statistical analysis**: Mann-Whitney results with significance highlighting and comparative boxplots
+- **Subset analysis**: baseline cohort breakdowns and the key B cell result
 
 ---
 
