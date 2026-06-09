@@ -1,0 +1,4 @@
+*.png
+*.db
+__pycache__/
+.vscode/

@@ -1,0 +1,19 @@
+Part 4 — Subset Analysis Results
+========================================
+Filter: melanoma · PBMC · time_from_treatment_start = 0 · miraclib
+
+Total samples:  656
+
+Samples per project:
+  prj1: 384
+  prj3: 272
+
+Response breakdown (unique subjects):
+  no: 325
+  yes: 331
+
+Sex breakdown (unique subjects):
+  F: 312
+  M: 344
+
+Avg B cells — melanoma male responders at t=0:  10401.28
